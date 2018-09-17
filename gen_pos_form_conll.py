@@ -1,6 +1,6 @@
 import pdb
 
-conll = 'en_ewt-ud-train.conll'
+conll = 'en_ewt-ud-dev.conll'
 op_f = open('op.pos', 'w')
 with open(conll) as f:
     for line in f.readlines():

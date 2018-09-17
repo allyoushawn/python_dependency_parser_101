@@ -501,8 +501,12 @@ def main(model_dir, train_loc, heldout_in, heldout_gold):
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
 
+    # input_sents is a list of tuples.
+    # Each tuple contains two elements, (wrd, pos) with type (str, str)
     input_sents = list(read_pos(heldout_in))
     parser = Parser(load=False)
+    # sentences is a list of tuples.
+    # Each tuple contains two elements, (wrd, pos, head, label) with type (str, str, int, str)
     sentences = list(read_conll(train_loc))
     train(parser, sentences, nr_iter=15)
     parser.save()
