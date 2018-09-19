@@ -93,7 +93,6 @@ class Parser(object):
         tags = self.tagger.tag(words)
         while stack or (i + 1) < n:
             features = extract_features(words, tags, i, n, stack, parse)
-            pdb.set_trace()
             scores = self.model.score(features)
             valid_moves = get_valid_moves(i, n, len(stack))
             gold_moves = get_gold_moves(i, n, stack, parse.heads, gold_heads)
