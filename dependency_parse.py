@@ -1,3 +1,4 @@
+"""The code is from the repository: https://gist.github.com/syllog1sm/10343947 """
 """A simple implementation of a greedy transition-based parser. Released under BSD license."""
 from os import path
 import os
@@ -29,6 +30,7 @@ class DefaultList(list):
             return self.default
 
 
+# A class for storing the results of the parsing
 class Parse(object):
     def __init__(self, n):
         self.n = n
@@ -40,9 +42,12 @@ class Parse(object):
             self.lefts.append(DefaultList(0))
             self.rights.append(DefaultList(0))
 
+    # Given the child and it's head
     def add(self, head, child, label=None):
         self.heads[child] = head
         self.labels[child] = label
+        # If 3 <-- 5:
+        # 3's head is 5 ; 3 is in 5's left
         if child < head:
             self.lefts[head].append(child)
         else:
@@ -61,12 +66,19 @@ class Parser(object):
     def save(self):
         self.model.save(path.join(os.path.dirname(__file__), 'parser.pickle'))
         self.tagger.save()
-    
+
+    # The parse is the function for parsing a sentence
+    # To parse a sentence, send a sentence (a list of wrds) into
+    #     the Parser.parse functions
     def parse(self, words):
         n = len(words)
         i = 2; stack = [1]; parse = Parse(n)
         tags = self.tagger.tag(words)
         while stack or (i+1) < n:
+            # The input of the function extrace_features is the
+            #     state of the parsing. The functin map the current
+            #     state to a feature. The state includes words, tags,
+            #     current wrd idx i, number of words n, stack and parse
             features = extract_features(words, tags, i, n, stack, parse)
             scores = self.model.score(features)
             valid_moves = get_valid_moves(i, n, len(stack))
@@ -74,16 +86,20 @@ class Parser(object):
             i = transition(guess, i, stack, parse)
         return tags, parse.heads
 
+    # Perform training on a single sentence
     def train_one(self, itn, words, gold_tags, gold_heads):
         n = len(words)
         i = 2; stack = [1]; parse = Parse(n)
         tags = self.tagger.tag(words)
         while stack or (i + 1) < n:
             features = extract_features(words, tags, i, n, stack, parse)
+            pdb.set_trace()
             scores = self.model.score(features)
             valid_moves = get_valid_moves(i, n, len(stack))
             gold_moves = get_gold_moves(i, n, stack, parse.heads, gold_heads)
             guess = max(valid_moves, key=lambda move: scores[move])
+
+            # If gold moves is an empty list, the assertion fails
             try: assert gold_moves
             except: gold_moves = valid_moves
             best = max(gold_moves, key=lambda move: scores[move])
@@ -93,6 +109,8 @@ class Parser(object):
         return len([i for i in range(n-1) if parse.heads[i] == gold_heads[i]])
 
 
+# Perform a transition to the state according to the action.
+# Return the resulting current wrd idx
 def transition(move, i, stack, parse):
     if move == SHIFT:
         stack.append(i)
@@ -106,6 +124,7 @@ def transition(move, i, stack, parse):
     assert move in MOVES
 
 
+# It is just a simple check which moves are executable
 def get_valid_moves(i, n, stack_depth):
     moves = []
     if (i+1) < n:
@@ -117,7 +136,18 @@ def get_valid_moves(i, n, stack_depth):
     return moves
 
 
+# Dynamic oracle. According to the current state compute
+#     the cost of each action.
+# Return the actions that did not have costs. In other words,
+#     return the actions that could recover the gold dependencies
+# Arguments:
+#     n0: the current wrd idx
+#     n:  the number of words
+#     heads: the predicted heads
+#     gold: the gold head
 def get_gold_moves(n0, n, stack, heads, gold):
+    # Check whether target has a link with the words in others
+    # gold is the true dependencies
     def deps_between(target, others, gold):
         for word in others:
             if gold[word] == target or gold[target] == word:
@@ -125,18 +155,33 @@ def get_gold_moves(n0, n, stack, heads, gold):
         return False
 
     valid = get_valid_moves(n0, n, len(stack))
+    # Directly shift
+    # Case1: there is nothing 1 stack
+    # Case2: the true head of n0 is stack[-1], we shift the
+    #        n0 into the stack then we could perform right operation
     if not stack or (SHIFT in valid and gold[n0] == stack[-1]):
         return [SHIFT]
+    # Directly left
+    # If the head of the stack[-1] is n0, then we perform the LEFT operation
     if gold[stack[-1]] == n0:
         return [LEFT]
+
+    # costly is a set of actions that is could not be performed
     costly = set([m for m in MOVES if m not in valid])
+
+    # Eliminate the actions that is impossible to lead to a gold dependency
+
     # If the word behind s0 is its gold head, Left is incorrect
+    # s0 means stack[-1]
     if len(stack) >= 2 and gold[stack[-1]] == stack[-2]:
         costly.add(LEFT)
+
     # If there are any dependencies between n0 and the stack,
     # pushing n0 will lose them.
+    # The case that gold[n0] is stack[-1] has been check beforehand
     if SHIFT not in costly and deps_between(n0, stack, gold):
         costly.add(SHIFT)
+
     # If there are any dependencies between s0 and the buffer, popping
     # s0 will lose them.
     if deps_between(stack[-1], range(n0+1, n-1), gold):
@@ -189,22 +234,22 @@ def extract_features(words, tags, n0, n, stack, parse):
 
     Ws0, Ws1, Ws2 = get_stack_context(depth, stack, words)
     Ts0, Ts1, Ts2 = get_stack_context(depth, stack, tags)
-   
+
     Wn0, Wn1, Wn2 = get_buffer_context(n0, n, words)
     Tn0, Tn1, Tn2 = get_buffer_context(n0, n, tags)
-    
+
     Vn0b, Wn0b1, Wn0b2 = get_parse_context(n0, parse.lefts, words)
     Vn0b, Tn0b1, Tn0b2 = get_parse_context(n0, parse.lefts, tags)
-    
+
     Vn0f, Wn0f1, Wn0f2 = get_parse_context(n0, parse.rights, words)
     _, Tn0f1, Tn0f2 = get_parse_context(n0, parse.rights, tags)
-  
+
     Vs0b, Ws0b1, Ws0b2 = get_parse_context(s0, parse.lefts, words)
     _, Ts0b1, Ts0b2 = get_parse_context(s0, parse.lefts, tags)
 
     Vs0f, Ws0f1, Ws0f2 = get_parse_context(s0, parse.rights, words)
     _, Ts0f1, Ts0f2 = get_parse_context(s0, parse.rights, tags)
-    
+
     # Cap numeric features at 5? 
     # String-distance
     Ds0n0 = min((n0 - s0, 5)) if s0 != 0 else 0
@@ -287,7 +332,8 @@ class Perceptron(object):
                 scores[clas] += value * weight
         return scores
 
-    def update(self, truth, guess, features):       
+    # Training the model
+    def update(self, truth, guess, features):
         def upd_feat(c, f, w, v):
             param = (f, c)
             self._totals[param] += (self.i - self._tstamps[param]) * w
@@ -337,7 +383,7 @@ class PerceptronTagger(object):
 
     def tag(self, words, tokenize=True):
         prev, prev2 = START
-        tags = DefaultList('') 
+        tags = DefaultList('')
         context = START + [self._normalize(w) for w in words] + END
         for i, word in enumerate(words):
             tag = self.tagdict.get(word)
@@ -440,6 +486,7 @@ def _pc(n, d):
     return (float(n) / d) * 100
 
 
+# Train the parser. If the iteration is less than 5, also train the POS tagger
 def train(parser, sentences, nr_iter):
     parser.tagger.start_training(sentences)
     for itn in range(nr_iter):
@@ -456,6 +503,9 @@ def train(parser, sentences, nr_iter):
     print('Averaging weights')
     parser.model.average_weights()
 
+
+# The function reads a pos file and returns the wrds and tags as a list of tuples
+# We use the function to read input sentences
 def read_pos(loc):
     for line in open(loc):
         if not line.strip():
@@ -473,6 +523,8 @@ def read_pos(loc):
         yield words, tags
 
 
+# The function reads a conllx file which contains all information about sentences
+# including wrd, pos, heads and labels.
 def read_conll(loc):
     for sent_str in open(loc).read().strip().split('\n\n'):
         lines = [line.split() for line in sent_str.split('\n')]
