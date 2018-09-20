@@ -361,7 +361,7 @@ class Perceptron(object):
 
     def save(self, path):
         print("Saving model to %s" % path)
-        pickle.dump(self.weights, open(path, 'w'))
+        pickle.dump(self.weights, open(path, 'wb'))
 
     def load(self, path):
         self.weights = pickle.load(open(path))
@@ -486,7 +486,7 @@ def _pc(n, d):
 
 
 # Train the parser. If the iteration is less than 5, also train the POS tagger
-def train(parser, sentences, nr_iter):
+def train(parser, sentences, dev_sents, dev_gold_sents, nr_iter):
     parser.tagger.start_training(sentences)
     for itn in range(nr_iter):
         corr = 0; total = 0
@@ -496,7 +496,8 @@ def train(parser, sentences, nr_iter):
             if itn < 5:
                 parser.tagger.train_one(words, gold_tags)
             total += len(words)
-        print(itn, '%.3f' % (float(corr) / float(total)))
+        print('Iteration: {} {:.4f}'.format(itn, (float(corr) / float(total))))
+        dev_crr = parser_eval(dev_sents, dev_gold_sents, parser)
         if itn == 4:
             parser.tagger.model.average_weights()
     print('Averaging weights')
@@ -537,7 +538,7 @@ def read_conll(loc):
             words.append(sys.intern(word))
             #words.append(intern(normalize(word)))
             tags.append(sys.intern(pos))
-            heads.append(int(head) + 1 if head != '-1' else len(lines) + 1)
+            heads.append(int(head) if head != '0' else len(lines) )
             labels.append(label)
         pad_tokens(words); pad_tokens(tags)
         yield words, tags, heads, labels
@@ -546,6 +547,24 @@ def read_conll(loc):
 def pad_tokens(tokens):
     tokens.insert(0, '<start>')
     tokens.append('ROOT')
+
+
+def parser_eval(input_sents, gold_sents, parser):
+    c = 0
+    t = 0
+    t1 = time.time()
+    for (words, tags), (_, _, gold_heads, gold_labels) in zip(input_sents, gold_sents):
+        _, heads = parser.parse(words)
+        for i, w in list(enumerate(words))[1:-1]:
+            if gold_labels[i] in ('P', 'punct'):
+                continue
+            if heads[i] == gold_heads[i]:
+                c += 1
+            t += 1
+    t2 = time.time()
+    sys.stdout.flush()
+    print('Dev. corr. {:.4f}'.format(float(c)/t))
+
 
 
 def main(model_dir, train_loc, heldout_in, heldout_gold):
@@ -559,11 +578,11 @@ def main(model_dir, train_loc, heldout_in, heldout_gold):
     # sentences is a list of tuples.
     # Each tuple contains two elements, (wrd, pos, head, label) with type (str, str, int, str)
     sentences = list(read_conll(train_loc))
-    train(parser, sentences, nr_iter=15)
+    gold_sents = list(read_conll(heldout_gold))
+    train(parser, sentences, input_sents, gold_sents, nr_iter=50)
     parser.save()
     c = 0
     t = 0
-    gold_sents = list(read_conll(heldout_gold))
     t1 = time.time()
     for (words, tags), (_, _, gold_heads, gold_labels) in zip(input_sents, gold_sents):
         _, heads = parser.parse(words)
@@ -575,7 +594,7 @@ def main(model_dir, train_loc, heldout_in, heldout_gold):
             t += 1
     t2 = time.time()
     print('Parsing took %0.3f ms' % ((t2-t1)*1000.0))
-    print(c, t, float(c)/t)
+    print('{} {} {:.4f}'.format(c, t, float(c)/t))
 
 
 if __name__ == '__main__':
