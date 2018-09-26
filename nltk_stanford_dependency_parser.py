@@ -58,7 +58,7 @@ def read_conll(loc):
             words.append(sys.intern(word))
             #words.append(intern(normalize(word)))
             tags.append(sys.intern(pos))
-            heads.append(int(head) if head != '0' else len(lines))
+            heads.append(int(head) if head != '0' else (len(lines) + 1))
             labels.append(label)
         pad_tokens(words); pad_tokens(tags)
         yield words, tags, heads, labels
@@ -112,7 +112,7 @@ for (words, tags), (_, _, gold_heads, gold_labels) in zip(input_sents, gold_sent
     modified_gold_heads = [1]
     for i in range(len(gold_labels)):
         if i == 0: continue
-        if gold_labels[i] == len(gold_heads) - 1:
+        if gold_heads[i] == len(gold_heads):
             modified_gold_heads.append(0)
         else:
             modified_gold_heads.append(gold_heads[i])

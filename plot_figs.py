@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib
 
 
+matplotlib.rcParams.update({'font.size': 15})
 blue_patch = mpatches.Patch(color='blue', label='dev')
 red_patch = mpatches.Patch(color='red', label='train')
 
@@ -14,7 +16,6 @@ with open('log') as f:
             dev_corr.append(float(tokens[2]))
         elif 'Iteration' in line:
             train_corr.append(float(tokens[2]))
-train_corr = train_corr[:-1]
 plt.plot([x for x in range(len(dev_corr))], train_corr, color='red')
 plt.plot([x for x in range(len(dev_corr))], dev_corr, color='blue')
 plt.axhline(y=0.5808, color='black')
