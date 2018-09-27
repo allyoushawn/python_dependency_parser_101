@@ -4,6 +4,7 @@ from nltk.parse.stanford import StanfordDependencyParser
 import sys
 import pdb
 import time
+import pickle
 
 path_to_jar = '../nltk_stanford/stanford-parser-full-2018-02-27/stanford-parser.jar'
 path_to_models_jar = '../nltk_stanford/stanford-english-corenlp-2018-02-27-models.jar'
@@ -58,10 +59,21 @@ def read_conll(loc):
             words.append(sys.intern(word))
             #words.append(intern(normalize(word)))
             tags.append(sys.intern(pos))
-            heads.append(int(head) if head != '0' else (len(lines) + 1))
+            heads.append(int(head) if head != '0' else len(lines) + 1)
             labels.append(label)
         pad_tokens(words); pad_tokens(tags)
         yield words, tags, heads, labels
+
+
+def get_root_distance(current_node, gold_heads):
+    dist = 0
+    head = current_node
+    while True:
+        if head == 0:
+            break
+        head = gold_heads[head]
+        dist += 1
+    return dist
 
 
 
@@ -85,6 +97,9 @@ c = 0
 t = 0
 t1 = time.time()
 counter = 0
+hit = [0] * 12
+total = [0] * 12
+
 print('Total sentence to be evaluated: {}'.format(len(input_sents)))
 for (words, tags), (_, _, gold_heads, gold_labels) in zip(input_sents, gold_sents):
     counter += 1
@@ -120,12 +135,26 @@ for (words, tags), (_, _, gold_heads, gold_labels) in zip(input_sents, gold_sent
     for i, w in list(enumerate(words))[1:-1]:
         if gold_labels[i] in ('P', 'punct'):
             continue
+        dist = get_root_distance(i, modified_gold_heads)
         try:
             if heads[i] == modified_gold_heads[i]:
                 c += 1
+                if dist <= 10:
+                    hit[dist] += 1
+                else:
+                    hit[11] += 1
         except:
             pdb.set_trace()
         t += 1
+        if dist <= 10:
+            total[dist] += 1
+        else:
+            total[11] += 1
+
+with open('stanford_hit.pkl', 'wb') as fp:
+    pickle.dump(hit, fp)
+with open('stanford_total.pkl', 'wb') as fp:
+    pickle.dump(total, fp)
 
 t2 = time.time()
 print('Parsing took %0.3f ms' % ((t2-t1)*1000.0))

@@ -18,7 +18,7 @@ with open('log') as f:
             train_corr.append(float(tokens[2]))
 plt.plot([x for x in range(len(dev_corr))], train_corr, color='red')
 plt.plot([x for x in range(len(dev_corr))], dev_corr, color='blue')
-plt.axhline(y=0.5808, color='black')
+plt.axhline(y=0.64, color='black')
 plt.legend(handles=[red_patch, blue_patch])
 plt.annotate('NLTK Stanford Dependency Parser',
     color='black',
