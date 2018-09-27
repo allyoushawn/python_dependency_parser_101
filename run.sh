@@ -10,7 +10,8 @@ python3 scripts/nltk_stanford_dependency_parser.py
 python3  utils/plot_learning_curves.py
 
 # Run analysis on self-implemented dependency parser
-python3 error_analysis_sciripts/dependency_parse.py
+python3 error_analysis_scriipts/dependency_parse.py model data/en_ewt-ud-train.conll data/en_ewt-ud-dev.pos data/en_ewt-ud-dev.conll
+
 
 # Run analysis on Stanford Parsers
 python3 error_analysis_scripts/nltk_stanford_dependency_parser.py

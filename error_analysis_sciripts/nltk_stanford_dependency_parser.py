@@ -8,8 +8,8 @@ import pickle
 
 path_to_jar = '../nltk_stanford/stanford-parser-full-2018-02-27/stanford-parser.jar'
 path_to_models_jar = '../nltk_stanford/stanford-english-corenlp-2018-02-27-models.jar'
-heldout_in ='en_ewt-ud-dev.pos'
-heldout_gold = 'en_ewt-ud-dev.conll'
+heldout_in ='data/en_ewt-ud-dev.pos'
+heldout_gold = 'data/en_ewt-ud-dev.conll'
 
 class DefaultList(list):
     """A list that returns a default value if index out of bounds."""
